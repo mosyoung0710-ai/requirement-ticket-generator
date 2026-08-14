@@ -6,6 +6,8 @@
 
 [在线体验](https://mosyoung0710-ai.github.io/requirement-ticket-generator/)
 
+> 💬 有任何离谱需求场景、Bug 或改进建议，欢迎直接[提交 Issue](https://github.com/mosyoung0710-ai/requirement-ticket-generator/issues/new)。
+
 ![不同尺寸取号单拼版预览](assets/mixed-size-print-preview.png)
 
 ## 功能
