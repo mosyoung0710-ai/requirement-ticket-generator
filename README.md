@@ -4,6 +4,10 @@
 
 **——当“这个需求很急”出现第 8 次时，是时候让大家先取个号了。**
 
+[在线体验](https://mosyoung0710-ai.github.io/requirement-ticket-generator/) |
+[提 Issue](https://github.com/mosyoung0710-ai/requirement-ticket-generator/issues/new) |
+[⭐ Star](https://github.com/mosyoung0710-ai/requirement-ticket-generator)
+
 它把零散需求维护成一条全局队列，并为每条需求生成可自定义、可重复生成、可打印的“取号单”。所有数据默认只保存在当前浏览器本地，不需要账号、服务器或数据库。
 
 [在线体验](https://mosyoung0710-ai.github.io/requirement-ticket-generator/)
