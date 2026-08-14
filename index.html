@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>需求取号单生成器</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">取</span>
+          <div>
+            <h1>需求取号单</h1>
+            <p>离线队列管理与趣味取号单</p>
+          </div>
+        </div>
+        <nav class="nav" aria-label="一级入口">
+          <button class="nav-item active" data-view="dashboard">工作台</button>
+          <button class="nav-item" data-view="form">新增/编辑</button>
+          <button class="nav-item" data-view="ticket">取号单编辑器</button>
+          <button class="nav-item" data-view="print">打印与导出</button>
+          <button class="nav-item" data-view="settings">设置</button>
+        </nav>
+        <div class="storage-note">
+          <span>本地保存</span>
+          <strong id="saveStatus">已加载</strong>
+        </div>
+      </aside>
+
+      <main class="main">
+        <section class="view active" id="dashboardView" data-view-panel="dashboard">
+          <div class="toolbar">
+            <div>
+              <p class="eyebrow">全局队列</p>
+              <h2>现在前面还有多少活</h2>
+            </div>
+            <button class="primary" id="newRequirementBtn">新增需求</button>
+          </div>
+
+          <div class="stats-grid">
+            <article><span>有效需求</span><strong id="statActive">0</strong></article>
+            <article><span>处理中</span><strong id="statDoing">0</strong></article>
+            <article><span>评估中</span><strong id="statEvaluating">0</strong></article>
+            <article><span>暂不做</span><strong id="statPaused">0</strong></article>
+            <article><span>已完成</span><strong id="statDone">0</strong></article>
+          </div>
+
+          <div class="filters">
+            <label>
+              搜索
+              <input id="searchInput" type="search" placeholder="需求名称或编号">
+            </label>
+            <label>
+              部门
+              <select id="filterDepartment" multiple size="3"></select>
+            </label>
+            <label>
+              初判
+              <select id="filterType">
+                <option value="">全部</option>
+              </select>
+            </label>
+            <label>
+              优先级
+              <select id="filterPriority">
+                <option value="">全部</option>
+              </select>
+            </label>
+            <label>
+              状态
+              <select id="filterStatus">
+                <option value="">全部</option>
+                <option value="排队中">排队中</option>
+                <option value="评估中">评估中</option>
+                <option value="处理中">处理中</option>
+              </select>
+            </label>
+            <button class="ghost" id="clearFiltersBtn">清空筛选</button>
+          </div>
+
+          <div class="section-head">
+            <h3>有效队列</h3>
+            <p>排队中、评估中、处理中会计入前方需求数</p>
+          </div>
+          <div class="queue-list" id="activeList"></div>
+
+          <details class="archive-block" open>
+            <summary>暂不做</summary>
+            <div class="queue-list compact" id="pausedList"></div>
+          </details>
+
+          <details class="archive-block">
+            <summary>已完成</summary>
+            <div class="queue-list compact" id="doneList"></div>
+          </details>
+        </section>
+
+        <section class="view" id="formView" data-view-panel="form">
+          <div class="toolbar">
+            <div>
+              <p class="eyebrow" id="formMode">新增需求</p>
+              <h2>给新活取个号</h2>
+            </div>
+            <button class="ghost" id="resetFormBtn">清空表单</button>
+          </div>
+
+          <form class="form-card" id="requirementForm">
+            <input type="hidden" id="editingId">
+            <input type="hidden" id="insertBeforeId">
+            <div class="form-grid">
+              <label class="full">
+                需求名称 <span class="required">*</span>
+                <input id="titleInput" required maxlength="80" placeholder="例如：活动页增加一个不太离谱的按钮">
+              </label>
+
+              <fieldset class="full">
+                <legend>涉及部门 <span class="required">*</span></legend>
+                <div class="choice-grid" id="departmentChoices"></div>
+                <p class="field-tip">至少选一个；跨部门项目可以多选。</p>
+              </fieldset>
+
+              <label>
+                需求初判 <span class="required">*</span>
+                <select id="typeInput" required></select>
+              </label>
+
+              <label>
+                优先级 <span class="required">*</span>
+                <select id="priorityInput" required></select>
+              </label>
+
+              <label>
+                当前状态
+                <select id="statusInput">
+                  <option value="排队中">排队中</option>
+                  <option value="评估中">评估中</option>
+                  <option value="处理中">处理中</option>
+                  <option value="暂不做">暂不做</option>
+                  <option value="已完成">已完成</option>
+                </select>
+              </label>
+
+              <label>
+                工作日估时
+                <select id="estimateMode">
+                  <option value="none">不填写</option>
+                  <option value="single">单值</option>
+                  <option value="range">区间</option>
+                </select>
+              </label>
+
+              <label class="estimate-field" data-estimate="single">
+                单值（工作日）
+                <input id="estimateSingle" type="number" min="0.5" max="999" step="0.5" placeholder="例如 3">
+              </label>
+
+              <div class="estimate-field range-pair" data-estimate="range">
+                <label>
+                  起始（工作日）
+                  <input id="estimateMin" type="number" min="0.5" max="999" step="0.5" placeholder="例如 3">
+                </label>
+                <label>
+                  结束（工作日）
+                  <input id="estimateMax" type="number" min="0.5" max="999" step="0.5" placeholder="例如 5">
+                </label>
+              </div>
+
+              <label>
+                预计开始日期
+                <input id="startDateInput" type="date">
+              </label>
+
+              <label>
+                预计完成日期
+                <input id="endDateInput" type="date">
+              </label>
+
+              <label class="full">
+                排期备注
+                <textarea id="scheduleNoteInput" rows="2" maxlength="80" placeholder="可写排期口径、依赖事项或待确认点"></textarea>
+              </label>
+
+              <fieldset class="full wait-fieldset">
+                <legend>等待参考</legend>
+                <div class="wait-grid">
+                  <label>
+                    显示方式
+                    <select id="waitModeInput">
+                      <option value="hidden">不显示</option>
+                      <option value="manual">自己填写</option>
+                      <option value="suggested">系统建议</option>
+                    </select>
+                  </label>
+                  <div class="wait-actions">
+                    <button class="ghost" type="button" id="generateWaitSuggestionBtn">重新生成建议</button>
+                  </div>
+                </div>
+                <label class="wait-text-wrap">
+                  等待参考文案
+                  <textarea id="waitTextInput" rows="3" maxlength="200" placeholder="例如：预计下周开始，仅供参考。"></textarea>
+                  <span class="char-counter" id="waitCharCounter">还可输入 200 字</span>
+                </label>
+                <p class="field-tip" id="waitHelper">默认不显示；选择“自己填写”或“系统建议”后，文案非空才会出现在取号单上。</p>
+              </fieldset>
+
+              <label class="full">
+                备注
+                <textarea id="noteInput" rows="4" placeholder="可写背景、口径、暂不做原因等"></textarea>
+              </label>
+            </div>
+
+            <div class="form-error" id="formError" role="alert"></div>
+            <div class="form-actions">
+              <button class="primary" type="submit">保存需求</button>
+              <button class="ghost" type="button" id="cancelEditBtn">返回工作台</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="view" id="ticketView" data-view-panel="ticket">
+          <div class="placeholder-panel" id="ticketEmptyState">
+            <p class="eyebrow">取号单编辑器</p>
+            <h2>取号单编辑器</h2>
+            <p>请从工作台的某条需求点击“生成/查看取号单”进入编辑。</p>
+          </div>
+
+          <div class="ticket-editor" id="ticketEditor" hidden>
+            <div class="toolbar ticket-toolbar">
+              <div>
+                <p class="eyebrow" id="ticketEditorMode">取号单编辑</p>
+                <h2 id="ticketEditorTitle">取号单</h2>
+                <p class="field-tip" id="ticketSnapshotSummary">尚未生成快照</p>
+              </div>
+              <button class="ghost" id="backToDashboardBtn" type="button">返回工作台</button>
+            </div>
+
+            <div class="ticket-layout">
+              <aside class="editor-panel ticket-settings">
+                <h3>模板和内容</h3>
+                <label>
+                  基础模板
+                  <select id="ticketTemplateSelect"></select>
+                </label>
+                <label>
+                  当前模块
+                  <select id="ticketModuleSelect"></select>
+                </label>
+                <label>
+                  模块文字
+                  <textarea id="ticketModuleText" rows="4" maxlength="200"></textarea>
+                  <span class="char-counter" id="ticketTextCounter">还可输入 40 字</span>
+                </label>
+                <div class="module-style-grid">
+                  <label>
+                    字号
+                    <input id="ticketFontSize" type="number" min="12" max="48" step="1">
+                  </label>
+                  <label>
+                    粗细
+                    <select id="ticketFontWeight">
+                      <option value="400">常规</option>
+                      <option value="700">加粗</option>
+                      <option value="900">特粗</option>
+                    </select>
+                  </label>
+                  <label>
+                    对齐
+                    <select id="ticketTextAlign">
+                      <option value="left">左对齐</option>
+                      <option value="center">居中</option>
+                      <option value="right">右对齐</option>
+                    </select>
+                  </label>
+                  <label>
+                    强调色
+                    <input id="ticketAccentColor" type="color" value="#211f1b">
+                  </label>
+                </div>
+                <div class="form-actions">
+                  <button class="ghost" id="resetModuleBtn" type="button">恢复模块默认内容</button>
+                  <button class="ghost" id="saveDefaultTicketBtn" type="button">保存为默认样式</button>
+                </div>
+              </aside>
+
+              <section class="ticket-preview-area">
+                <div class="ticket-preview-wrap">
+                  <article class="ticket-preview-card" id="ticketPreview"></article>
+                </div>
+                <p class="form-error" id="ticketEditorError" role="alert"></p>
+                <div class="form-actions">
+                  <button class="primary" id="confirmTicketBtn" type="button">确认生成本地快照</button>
+                  <span class="field-tip">确认后保存本地快照，再到打印中心导出或打印。</span>
+                </div>
+              </section>
+
+              <aside class="editor-panel module-panel">
+                <h3>模块列表</h3>
+                <p class="field-tip">顺序布局，不支持任意坐标拖拽、旋转或叠放。</p>
+                <div class="module-list" id="ticketModuleList"></div>
+              </aside>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="printView" data-view-panel="print">
+          <div class="toolbar">
+            <div>
+              <p class="eyebrow">快照打印</p>
+              <h2>打印与另存为 PDF</h2>
+            </div>
+            <button class="primary" id="openPrintBtn" type="button" disabled>打开浏览器打印</button>
+          </div>
+
+          <div class="print-empty" id="printEmptyState" hidden>
+            <p class="eyebrow">暂无可打印快照</p>
+            <h3>先到取号单编辑器确认生成本地快照。</h3>
+            <p>打印只读取已确认快照，不读取尚未确认的实时编辑内容。</p>
+          </div>
+
+          <div class="print-workbench" id="printWorkbench">
+            <section class="settings-card print-controls">
+              <div id="singlePrintTargetControls">
+                <h3>打印对象</h3>
+                <label>
+                  选择需求
+                  <select id="printRequirementSelect"></select>
+                </label>
+                <label>
+                  选择历史快照
+                  <select id="printSnapshotSelect"></select>
+                </label>
+                <p class="field-tip" id="printSnapshotInfo">请选择已确认快照。</p>
+              </div>
+
+              <h3>尺寸和拼版</h3>
+              <div class="segmented">
+                <label><input type="radio" name="printMode" value="single" checked> 单张</label>
+                <label><input type="radio" name="printMode" value="a4"> A4 拼版</label>
+              </div>
+              <label>
+                <span id="printSizeLabel">单张尺寸</span>
+                <select id="printSizePreset">
+                  <option value="80x180">默认窄长版 80×180 mm</option>
+                  <option value="80x130">紧凑版 80×130 mm</option>
+                  <option value="custom">自定义尺寸</option>
+                </select>
+              </label>
+              <p class="field-tip" id="printSizeHint">单张和同款多份使用此尺寸。</p>
+              <div class="print-size-grid" id="customSizeFields">
+                <label>
+                  宽度 mm
+                  <input id="customPrintWidth" type="number" min="50" max="210" step="1" value="80">
+                </label>
+                <label>
+                  高度 mm
+                  <input id="customPrintHeight" type="number" min="80" max="297" step="1" value="180">
+                </label>
+              </div>
+
+              <div class="a4-controls" id="a4Controls">
+                <div class="a4-content-mode">
+                  <h4>拼版内容</h4>
+                  <div class="segmented">
+                    <label><input type="radio" name="a4ContentMode" value="same" checked> 同款多份</label>
+                    <label><input type="radio" name="a4ContentMode" value="mixed"> 多需求拼版</label>
+                  </div>
+                </div>
+                <label id="sameCopiesControl">
+                  拼版份数
+                  <select id="a4CopiesSelect">
+                    <option value="1">1 份</option>
+                    <option value="2">2 份</option>
+                    <option value="4">4 份</option>
+                    <option value="6">6 份</option>
+                  </select>
+                </label>
+                <div class="mixed-basket" id="mixedBasketControls" hidden>
+                  <div class="mixed-basket-head">
+                    <h4>打印篮子</h4>
+                    <button class="secondary" id="addMixedItemBtn" type="button">添加需求</button>
+                  </div>
+                  <div class="mixed-items" id="mixedItemsList"></div>
+                  <p class="field-tip" id="mixedBasketSummary">多需求拼版仅用于 A4，同一张 A4 最多 6 张票。</p>
+                </div>
+                <div class="print-size-grid">
+                  <label>
+                    页边距 mm
+                    <input id="a4MarginInput" type="number" min="5" max="30" step="1" value="10">
+                  </label>
+                  <label>
+                    卡片间距 mm
+                    <input id="a4GapInput" type="number" min="0" max="20" step="1" value="5">
+                  </label>
+                </div>
+                <label class="check-row">
+                  <input id="cutLinesInput" type="checkbox" checked>
+                  显示裁切线
+                </label>
+              </div>
+
+              <div class="print-warning">
+                打印前请确认浏览器缩放为 100% / 实际大小，关闭“适合页面”等自动缩放，并启用背景图形；Emoji 受系统字体、打印机和 PDF 驱动影响，打印前请看预览。
+              </div>
+              <p class="form-error" id="printError" role="alert"></p>
+            </section>
+
+            <section class="print-preview-panel">
+              <div class="print-preview-toolbar">
+                <h3>A4 / 单张预览</h3>
+                <p class="field-tip" id="printLayoutInfo"></p>
+              </div>
+              <div class="print-preview-stage" id="printPreviewStage"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="settingsView" data-view-panel="settings">
+          <div class="toolbar">
+            <div>
+              <p class="eyebrow">本地配置</p>
+              <h2>部门、初判、优先级</h2>
+            </div>
+            <button class="ghost danger" id="resetDemoBtn">清空全部数据</button>
+          </div>
+
+          <div class="settings-grid">
+            <section class="settings-card">
+              <h3>部门管理</h3>
+              <form class="inline-form" id="departmentForm">
+                <input id="departmentName" placeholder="新增部门名称" maxlength="20">
+                <input id="departmentColor" type="color" value="#6f685f" aria-label="部门颜色">
+                <button type="submit">添加</button>
+              </form>
+              <div class="config-list" id="departmentList"></div>
+            </section>
+
+            <section class="settings-card">
+              <h3>需求初判</h3>
+              <form class="inline-form" id="typeForm">
+                <input id="typePrefix" placeholder="前缀" maxlength="2">
+                <input id="typeName" placeholder="名称" maxlength="20">
+                <input id="typeColor" type="color" value="#6f685f" aria-label="初判颜色">
+                <button type="submit">添加</button>
+              </form>
+              <div class="config-list" id="typeList"></div>
+            </section>
+
+            <section class="settings-card">
+              <h3>优先级样式</h3>
+              <p class="field-tip">P0～P3 固定，只允许修改展示名和颜色；本轮不提供自动排序。</p>
+              <div class="config-list" id="priorityList"></div>
+            </section>
+
+            <section class="settings-card">
+              <h3>编号管理</h3>
+              <p class="field-tip">开启新一轮只影响之后的新需求；有效队列内若有重复号码，会自动跳过。</p>
+              <div class="config-list" id="cycleList"></div>
+            </section>
+
+            <section class="settings-card backup-card">
+              <h3>数据备份与恢复</h3>
+              <p class="field-tip">导出完整 JSON；导入会先校验，通过后再确认覆盖当前浏览器数据。</p>
+              <div class="form-actions">
+                <button class="primary" id="exportBackupBtn" type="button">导出完整备份</button>
+                <label class="file-button">
+                  选择备份 JSON
+                  <input id="importBackupInput" type="file" accept="application/json,.json">
+                </label>
+              </div>
+              <div class="backup-summary" id="backupSummary">尚未选择备份文件。</div>
+              <div class="form-actions">
+                <button class="ghost danger" id="confirmRestoreBtn" type="button" disabled>确认覆盖恢复</button>
+              </div>
+              <p class="form-error" id="backupError" role="alert"></p>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <template id="queueItemTemplate">
+      <article class="queue-item">
+        <div class="queue-main">
+          <span class="ticket-no"></span>
+          <div>
+            <h4></h4>
+            <div class="meta"></div>
+            <p class="note"></p>
+          </div>
+        </div>
+        <div class="queue-side">
+          <span class="ahead"></span>
+          <div class="actions"></div>
+        </div>
+      </article>
+    </template>
+
+    <div id="printRoot" aria-hidden="true"></div>
+    <style id="dynamicPrintStyle"></style>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
